@@ -244,9 +244,9 @@ async function checkArtist() {
       return;
     }
 
-    showStatus('Found Seated artist ID: ' + artistId + '. Loading all tour events...');
+    showStatus('Found Seated artist ID: ' + artistId + '. Loading tour events...');
 
-    // Step 3: Get all tour events
+    // Step 3: Get all tour events (basic list)
     const tourResp = await fetch(TOUR_API + artistId + '?include=tour-events', {
       headers: { 'Accept': 'application/vnd.api+json' }
     });
@@ -254,7 +254,29 @@ async function checkArtist() {
     if (!tourResp.ok) throw new Error('Seated API returned ' + tourResp.status);
 
     const tourData = await tourResp.json();
-    displayTourEvents(tourData, artistId);
+    const included = tourData.included || [];
+    const tourEvents = included.filter(i => i.type === 'tour-events');
+
+    // Step 4: Fetch each event individually to get presale codes
+    // The tour endpoint doesn't include on-sale-dates, need individual calls
+    showStatus(`Found ${tourEvents.length} events. Scanning each for presale codes (0/${tourEvents.length})...`);
+
+    const fullEvents = [];
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < tourEvents.length; i += BATCH_SIZE) {
+      const batch = tourEvents.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(batch.map(async (ev) => {
+        try {
+          const r = await fetch(API_BASE + ev.id, { headers: { 'Accept': 'application/vnd.api+json' } });
+          if (!r.ok) return null;
+          return await r.json();
+        } catch(e) { return null; }
+      }));
+      fullEvents.push(...results.filter(Boolean));
+      showStatus(`Found ${tourEvents.length} events. Scanning each for presale codes (${Math.min(i + BATCH_SIZE, tourEvents.length)}/${tourEvents.length})...`);
+    }
+
+    displayTourEvents(fullEvents, artistId);
 
   } catch(e) {
     showError('Error: ' + e.message);
@@ -265,25 +287,43 @@ async function checkArtist() {
   }
 }
 
-function displayTourEvents(tourData, artistId) {
-  const included = tourData.included || [];
-  const tourEvents = included.filter(i => i.type === 'tour-events');
-  const onsales = {};
-  const venues = {};
-  let artistName = '';
+function displayTourEvents(eventResponses, artistId) {
+  // eventResponses is an array of individual /api/v1/tour-events/{id} responses
+  // Each has .data (the event) and .included (artist, venue, on-sale-dates)
 
-  for (const item of included) {
-    if (item.type === 'on-sale-dates') onsales[item.id] = item.attributes;
-    if (item.type === 'venues') venues[item.id] = item.attributes;
-    if (item.type === 'artists') artistName = item.attributes?.name || '';
+  let artistName = '';
+  const parsedEvents = [];
+
+  for (const resp of eventResponses) {
+    const event = resp.data;
+    const included = resp.included || [];
+    const attrs = event?.attributes || {};
+
+    let venue = '', venueCity = '';
+    const sales = [];
+
+    for (const item of included) {
+      if (item.type === 'artists' && !artistName) artistName = item.attributes?.name || '';
+      if (item.type === 'venues') {
+        venue = item.attributes?.name || '';
+        venueCity = [item.attributes?.city, item.attributes?.['state-or-province'] || item.attributes?.country].filter(Boolean).join(', ');
+      }
+      if (item.type === 'on-sale-dates') sales.push(item.attributes);
+    }
+
+    parsedEvents.push({
+      id: event.id,
+      attrs,
+      venue: venue || attrs['venue-name'] || 'TBA',
+      location: venueCity || attrs['formatted-address'] || '',
+      sales
+    });
   }
 
-  // Also check tour data itself for artist name
-  const tourAttrs = tourData.data?.attributes || {};
-  if (!artistName) artistName = tourAttrs.name || 'Unknown Artist';
+  if (!artistName) artistName = 'Unknown Artist';
 
   // Sort by date
-  tourEvents.sort((a, b) => new Date(a.attributes['starts-at']) - new Date(b.attributes['starts-at']));
+  parsedEvents.sort((a, b) => new Date(a.attrs['starts-at']) - new Date(b.attrs['starts-at']));
 
   const container = document.getElementById('tourResults');
   container.innerHTML = '';
@@ -292,40 +332,23 @@ function displayTourEvents(tourData, artistId) {
   const header = document.createElement('div');
   header.style.cssText = 'margin-bottom:15px;';
   header.innerHTML = `<div style="font-size:20px;font-weight:700;color:#a4dde0;margin-bottom:5px">${artistName}</div>
-    <div style="color:#888;font-size:13px">${tourEvents.length} tour events found</div>`;
+    <div style="color:#888;font-size:13px">${parsedEvents.length} tour events found</div>`;
   container.appendChild(header);
 
   let codesFound = 0;
 
-  for (const event of tourEvents) {
-    const attrs = event.attributes;
-    const venueId = event.relationships?.venue?.data?.id;
-    const venueData = venues[venueId] || {};
-    const venueName = venueData.name || attrs['venue-name'] || 'TBA';
-    const location = [venueData.city, venueData['state-or-province'] || venueData.country].filter(Boolean).join(', ') || attrs['formatted-address'] || '';
-
-    const osdRels = event.relationships?.['on-sale-dates']?.data || [];
-
-    let codes = [];
-    let saleDetails = [];
-    for (const osd of osdRels) {
-      const sale = onsales[osd.id];
-      if (!sale) continue;
-      saleDetails.push(sale);
-      if (sale.password) {
-        codes.push(sale);
-        codesFound++;
-      }
-    }
+  for (const ev of parsedEvents) {
+    const codes = ev.sales.filter(s => s.password);
+    codesFound += codes.length;
 
     const div = document.createElement('div');
     div.className = codes.length > 0 ? 'tour-event has-code' : 'tour-event';
 
     let html = `<div class="event-header">
-      <span class="event-venue">${venueName}</span>
-      <span class="event-date">${formatDate(attrs['starts-at'], attrs['time-zone-id'])}</span>
+      <span class="event-venue">${ev.venue}</span>
+      <span class="event-date">${formatDate(ev.attrs['starts-at'], ev.attrs['time-zone-id'])}</span>
     </div>
-    <div class="event-location">${location}</div>`;
+    <div class="event-location">${ev.location}</div>`;
 
     for (const sale of codes) {
       html += `<div style="margin:8px 0">
@@ -334,10 +357,9 @@ function displayTourEvents(tourData, artistId) {
         <span style="color:#666;font-size:11px;margin-left:8px">(click to copy)</span>
       </div>
       <div class="event-sale-info">
-        Presale: ${formatDate(sale['starts-at'], attrs['time-zone-id'])} ${sale['ends-at'] ? ' to ' + formatDate(sale['ends-at'], attrs['time-zone-id']) : ''}
+        Presale: ${formatDate(sale['starts-at'], ev.attrs['time-zone-id'])} ${sale['ends-at'] ? ' to ' + formatDate(sale['ends-at'], ev.attrs['time-zone-id']) : ''}
       </div>`;
 
-      // Clean TM link
       if (sale['link-url']) {
         let tmLink = sale['link-url'];
         try {
@@ -349,15 +371,15 @@ function displayTourEvents(tourData, artistId) {
     }
 
     // Show non-code sales too
-    for (const sale of saleDetails) {
+    for (const sale of ev.sales) {
       if (sale.password) continue;
       html += `<div class="event-sale-info" style="margin-top:5px">
-        ${sale.name}: ${formatDate(sale['starts-at'], attrs['time-zone-id'])}
+        ${sale.name}: ${formatDate(sale['starts-at'], ev.attrs['time-zone-id'])}
         ${sale['link-url'] ? ` - <a href="${cleanTMLink(sale['link-url'])}" target="_blank" style="color:#a4dde0;text-decoration:none;font-size:12px">Tickets</a>` : ''}
       </div>`;
     }
 
-    if (saleDetails.length === 0) {
+    if (ev.sales.length === 0) {
       html += `<div class="event-sale-info">No sale dates listed yet</div>`;
     }
 
@@ -380,10 +402,9 @@ function displayTourEvents(tourData, artistId) {
   }
 
   // Save to history
-  if (codesFound > 0) {
-    const firstCode = included.filter(i => i.type === 'on-sale-dates' && i.attributes.password)[0];
-    saveHistory(artistId, artistName, `${tourEvents.length} events`, firstCode?.attributes?.password || null, 'artist');
-  }
+  const allCodes = parsedEvents.flatMap(e => e.sales.filter(s => s.password));
+  const firstCode = allCodes.length > 0 ? allCodes[0].password : null;
+  saveHistory(artistId, artistName, `${parsedEvents.length} events`, firstCode, 'artist');
 }
 
 function cleanTMLink(url) {
