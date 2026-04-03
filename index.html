@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seated Presale Code Checker</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; padding: 20px; }
+.container { max-width: 800px; margin: 0 auto; }
+h1 { color: #a4dde0; margin-bottom: 5px; font-size: 24px; }
+.subtitle { color: #888; margin-bottom: 25px; font-size: 13px; }
+.tabs { display: flex; gap: 5px; margin-bottom: 15px; }
+.tab { padding: 8px 16px; border: 1px solid #333; border-radius: 8px 8px 0 0; background: #16213e; color: #888; cursor: pointer; font-size: 13px; }
+.tab.active { background: #0f3460; color: #a4dde0; border-color: #a4dde0; border-bottom-color: #0f3460; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+input[type="text"] { flex: 1; padding: 12px 15px; border: 2px solid #333; border-radius: 8px; background: #16213e; color: #eee; font-size: 14px; outline: none; }
+input[type="text"]:focus { border-color: #a4dde0; }
+input[type="text"]::placeholder { color: #666; }
+button { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s; }
+.btn-check { background: #a4dde0; color: #1a1a2e; }
+.btn-check:hover { background: #7fcfd3; }
+.btn-check:disabled { background: #555; color: #888; cursor: wait; }
+.result { background: #16213e; border-radius: 10px; padding: 20px; margin-top: 10px; display: none; }
+.result.show { display: block; }
+.result-header { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+.result-header .icon { font-size: 24px; }
+.result-header .title { font-size: 18px; font-weight: 600; }
+.info-grid { display: grid; grid-template-columns: 130px 1fr; gap: 8px 15px; }
+.info-label { color: #888; font-size: 13px; }
+.info-value { font-size: 14px; word-break: break-all; }
+.presale-code { background: #0f3460; border: 2px solid #a4dde0; border-radius: 8px; padding: 15px; margin: 15px 0; text-align: center; }
+.presale-code .code { font-size: 28px; font-weight: 700; color: #a4dde0; letter-spacing: 3px; cursor: pointer; }
+.presale-code .code:hover { color: #fff; }
+.presale-code .hint { font-size: 11px; color: #666; margin-top: 5px; }
+.no-code { color: #ff6b6b; }
+.sale-item { background: #1a1a3e; border-radius: 8px; padding: 15px; margin-bottom: 10px; border-left: 4px solid #a4dde0; }
+.sale-item.no-pass { border-left-color: #555; }
+.sale-name { font-weight: 600; margin-bottom: 8px; font-size: 15px; }
+.sale-time { color: #aaa; font-size: 13px; }
+.sale-link { margin-top: 8px; }
+.sale-link a { color: #a4dde0; text-decoration: none; font-size: 13px; }
+.sale-link a:hover { text-decoration: underline; }
+.error { background: #3e1616; border-radius: 10px; padding: 15px; color: #ff6b6b; display: none; margin-top: 10px; }
+.error.show { display: block; }
+.copied { position: fixed; top: 20px; right: 20px; background: #a4dde0; color: #1a1a2e; padding: 10px 20px; border-radius: 8px; font-weight: 600; display: none; z-index: 999; }
+.copied.show { display: block; }
+.status-msg { color: #a4dde0; padding: 10px; font-size: 13px; display: none; }
+.status-msg.show { display: block; }
+.tour-event { background: #16213e; border-radius: 10px; padding: 15px; margin-bottom: 12px; border: 1px solid #333; }
+.tour-event.has-code { border-color: #a4dde0; background: #0f2a4e; }
+.tour-event .event-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.tour-event .event-venue { font-weight: 600; font-size: 15px; }
+.tour-event .event-date { color: #aaa; font-size: 13px; }
+.tour-event .event-location { color: #888; font-size: 13px; margin-bottom: 8px; }
+.tour-event .event-code { font-size: 20px; font-weight: 700; color: #a4dde0; letter-spacing: 2px; cursor: pointer; }
+.tour-event .event-code:hover { color: #fff; }
+.tour-event .event-sale-info { color: #aaa; font-size: 12px; margin-top: 5px; }
+.tour-event .event-link { margin-top: 8px; }
+.tour-event .event-link a { color: #a4dde0; text-decoration: none; font-size: 12px; }
+.tour-event .event-link a:hover { text-decoration: underline; }
+.no-codes-note { color: #888; font-size: 13px; padding: 10px; }
+.history { margin-top: 30px; }
+.history h3 { color: #888; font-size: 13px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+.history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #16213e; border-radius: 6px; margin-bottom: 5px; cursor: pointer; font-size: 13px; }
+.history-item:hover { background: #1a2a4e; }
+.history-item .h-code { color: #a4dde0; font-weight: 600; }
+.history-item .h-event { color: #aaa; flex: 1; margin: 0 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-item .h-time { color: #666; font-size: 11px; }
+.btn-clear { background: transparent; color: #666; font-size: 11px; padding: 4px 8px; border: 1px solid #333; }
+.btn-clear:hover { color: #ff6b6b; border-color: #ff6b6b; }
+.help-box { background: #16213e; border-radius: 10px; padding: 15px; margin-top: 10px; font-size: 13px; color: #aaa; line-height: 1.8; }
+.help-box code { background: #0f3460; padding: 2px 6px; border-radius: 4px; color: #a4dde0; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Seated Presale Checker</h1>
+  <p class="subtitle">Find presale codes from any artist website or Seated event link</p>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('artist')">Artist / Tour Page</div>
+    <div class="tab" onclick="switchTab('event')">Single Event</div>
+  </div>
+
+  <div id="tab-artist" class="tab-content active">
+    <div class="input-group">
+      <input type="text" id="artistInput" placeholder="Artist website URL, e.g. danielcaesar.com/tour or sonofspergy.com/tour" />
+      <button class="btn-check" id="artistBtn" onclick="checkArtist()">Scan All Events</button>
+    </div>
+    <div class="help-box">
+      <strong>How to use:</strong><br>
+      1. Go to the artist's official website tour page<br>
+      2. Copy the URL and paste it here<br>
+      3. The tool will find the Seated widget and scan ALL tour events for presale codes<br><br>
+      <strong>Examples:</strong><br>
+      <code>danielcaesar.com/tour</code> or <code>sonofspergy.com/tour</code><br>
+      <code>weezer.com/tour</code><br>
+      Any site that has a Seated ticket widget embedded
+    </div>
+  </div>
+
+  <div id="tab-event" class="tab-content">
+    <div class="input-group">
+      <input type="text" id="urlInput" placeholder="go.seated.com/tour-events/UUID or just paste the UUID" />
+      <button class="btn-check" id="checkBtn" onclick="checkEvent()">Check</button>
+    </div>
+  </div>
+
+  <div class="copied" id="copiedMsg">Copied!</div>
+  <div class="status-msg" id="statusMsg"></div>
+  <div class="error" id="errorBox"></div>
+
+  <div id="tourResults"></div>
+
+  <div class="result" id="resultBox">
+    <div class="result-header">
+      <span class="icon" id="resultIcon"></span>
+      <span class="title" id="resultTitle"></span>
+    </div>
+    <div class="info-grid" id="infoGrid"></div>
+    <div id="salesList"></div>
+  </div>
+
+  <div class="history" id="historySection" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <h3>Recent Lookups</h3>
+      <button class="btn-clear" onclick="clearHistory()">Clear</button>
+    </div>
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<script>
+const API_BASE = 'https://api.seated.com/api/v1/tour-events/';
+const TOUR_API = 'https://api.seated.com/api/tour/';
+const CORS_PROXIES = [
+  'https://api.allorigins.win/raw?url=',
+  'https://corsproxy.io/?url='
+];
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  if (tab === 'artist') {
+    document.querySelectorAll('.tab')[0].classList.add('active');
+    document.getElementById('tab-artist').classList.add('active');
+  } else {
+    document.querySelectorAll('.tab')[1].classList.add('active');
+    document.getElementById('tab-event').classList.add('active');
+  }
+  clearResults();
+}
+
+function clearResults() {
+  document.getElementById('errorBox').classList.remove('show');
+  document.getElementById('resultBox').classList.remove('show');
+  document.getElementById('statusMsg').classList.remove('show');
+  document.getElementById('tourResults').innerHTML = '';
+}
+
+function showStatus(msg) {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorBox');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function extractUUID(input) {
+  input = input.trim();
+  const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+  const match = input.match(uuidPattern);
+  return match ? match[0] : null;
+}
+
+// Fetch a URL through CORS proxy
+async function fetchViaProxy(url) {
+  for (const proxy of CORS_PROXIES) {
+    try {
+      const resp = await fetch(proxy + encodeURIComponent(url), { signal: AbortSignal.timeout(10000) });
+      if (resp.ok) return await resp.text();
+    } catch(e) { continue; }
+  }
+  throw new Error('Could not fetch the page through any proxy');
+}
+
+// Extract Seated artist ID from an HTML page
+function extractArtistId(html) {
+  const match = html.match(/data-artist-id="([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"/i);
+  return match ? match[1] : null;
+}
+
+async function checkArtist() {
+  const input = document.getElementById('artistInput').value.trim();
+  const btn = document.getElementById('artistBtn');
+  clearResults();
+
+  if (!input) {
+    showError('Please paste an artist website URL.');
+    return;
+  }
+
+  // Normalize URL
+  let url = input;
+  if (!url.startsWith('http')) url = 'https://' + url;
+
+  btn.disabled = true;
+  btn.textContent = 'Scanning...';
+
+  try {
+    // Step 1: Fetch the artist website
+    showStatus('Fetching artist website...');
+    let html;
+    try {
+      // Try direct fetch first (some sites allow CORS)
+      const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      html = await resp.text();
+    } catch(e) {
+      // Use CORS proxy
+      showStatus('Using proxy to fetch website...');
+      html = await fetchViaProxy(url);
+    }
+
+    // Check for redirects in meta tags or JS
+    const metaRedirect = html.match(/url=(['"]?)(https?:\/\/[^'">\s]+)\1/i);
+    if (!extractArtistId(html) && metaRedirect) {
+      showStatus('Following redirect to ' + metaRedirect[2] + '...');
+      try {
+        html = await fetchViaProxy(metaRedirect[2]);
+      } catch(e) {}
+    }
+
+    // Step 2: Find artist ID
+    const artistId = extractArtistId(html);
+    if (!artistId) {
+      showError('No Seated widget found on this page. Make sure you are pasting the artist tour page URL (the page where you see ticket links). The page needs to have a Seated widget embedded.');
+      return;
+    }
+
+    showStatus('Found Seated artist ID: ' + artistId + '. Loading all tour events...');
+
+    // Step 3: Get all tour events
+    const tourResp = await fetch(TOUR_API + artistId + '?include=tour-events', {
+      headers: { 'Accept': 'application/vnd.api+json' }
+    });
+
+    if (!tourResp.ok) throw new Error('Seated API returned ' + tourResp.status);
+
+    const tourData = await tourResp.json();
+    displayTourEvents(tourData, artistId);
+
+  } catch(e) {
+    showError('Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Scan All Events';
+    document.getElementById('statusMsg').classList.remove('show');
+  }
+}
+
+function displayTourEvents(tourData, artistId) {
+  const included = tourData.included || [];
+  const tourEvents = included.filter(i => i.type === 'tour-events');
+  const onsales = {};
+  const venues = {};
+  let artistName = '';
+
+  for (const item of included) {
+    if (item.type === 'on-sale-dates') onsales[item.id] = item.attributes;
+    if (item.type === 'venues') venues[item.id] = item.attributes;
+    if (item.type === 'artists') artistName = item.attributes?.name || '';
+  }
+
+  // Also check tour data itself for artist name
+  const tourAttrs = tourData.data?.attributes || {};
+  if (!artistName) artistName = tourAttrs.name || 'Unknown Artist';
+
+  // Sort by date
+  tourEvents.sort((a, b) => new Date(a.attributes['starts-at']) - new Date(b.attributes['starts-at']));
+
+  const container = document.getElementById('tourResults');
+  container.innerHTML = '';
+
+  // Header
+  const header = document.createElement('div');
+  header.style.cssText = 'margin-bottom:15px;';
+  header.innerHTML = `<div style="font-size:20px;font-weight:700;color:#a4dde0;margin-bottom:5px">${artistName}</div>
+    <div style="color:#888;font-size:13px">${tourEvents.length} tour events found</div>`;
+  container.appendChild(header);
+
+  let codesFound = 0;
+
+  for (const event of tourEvents) {
+    const attrs = event.attributes;
+    const venueId = event.relationships?.venue?.data?.id;
+    const venueData = venues[venueId] || {};
+    const venueName = venueData.name || attrs['venue-name'] || 'TBA';
+    const location = [venueData.city, venueData['state-or-province'] || venueData.country].filter(Boolean).join(', ') || attrs['formatted-address'] || '';
+
+    const osdRels = event.relationships?.['on-sale-dates']?.data || [];
+
+    let codes = [];
+    let saleDetails = [];
+    for (const osd of osdRels) {
+      const sale = onsales[osd.id];
+      if (!sale) continue;
+      saleDetails.push(sale);
+      if (sale.password) {
+        codes.push(sale);
+        codesFound++;
+      }
+    }
+
+    const div = document.createElement('div');
+    div.className = codes.length > 0 ? 'tour-event has-code' : 'tour-event';
+
+    let html = `<div class="event-header">
+      <span class="event-venue">${venueName}</span>
+      <span class="event-date">${formatDate(attrs['starts-at'], attrs['time-zone-id'])}</span>
+    </div>
+    <div class="event-location">${location}</div>`;
+
+    for (const sale of codes) {
+      html += `<div style="margin:8px 0">
+        <span style="color:#888;font-size:12px">${sale.name}:</span>
+        <span class="event-code" onclick="copyCode('${sale.password}')">${sale.password}</span>
+        <span style="color:#666;font-size:11px;margin-left:8px">(click to copy)</span>
+      </div>
+      <div class="event-sale-info">
+        Presale: ${formatDate(sale['starts-at'], attrs['time-zone-id'])} ${sale['ends-at'] ? ' to ' + formatDate(sale['ends-at'], attrs['time-zone-id']) : ''}
+      </div>`;
+
+      // Clean TM link
+      if (sale['link-url']) {
+        let tmLink = sale['link-url'];
+        try {
+          const u = new URL(tmLink).searchParams.get('u');
+          if (u) tmLink = decodeURIComponent(u);
+        } catch(e) {}
+        html += `<div class="event-link"><a href="${tmLink}" target="_blank">Buy Tickets</a></div>`;
+      }
+    }
+
+    // Show non-code sales too
+    for (const sale of saleDetails) {
+      if (sale.password) continue;
+      html += `<div class="event-sale-info" style="margin-top:5px">
+        ${sale.name}: ${formatDate(sale['starts-at'], attrs['time-zone-id'])}
+        ${sale['link-url'] ? ` - <a href="${cleanTMLink(sale['link-url'])}" target="_blank" style="color:#a4dde0;text-decoration:none;font-size:12px">Tickets</a>` : ''}
+      </div>`;
+    }
+
+    if (saleDetails.length === 0) {
+      html += `<div class="event-sale-info">No sale dates listed yet</div>`;
+    }
+
+    div.innerHTML = html;
+    container.appendChild(div);
+  }
+
+  // Summary
+  if (codesFound > 0) {
+    const summary = document.createElement('div');
+    summary.style.cssText = 'background:#0f3460;border:2px solid #a4dde0;border-radius:10px;padding:15px;margin-bottom:15px;text-align:center;';
+    summary.innerHTML = `<div style="font-size:16px;font-weight:700;color:#a4dde0">${codesFound} presale code(s) found!</div>
+      <div style="color:#888;font-size:12px;margin-top:5px">Scroll down to see all events. Events with codes are highlighted.</div>`;
+    container.insertBefore(summary, header.nextSibling);
+  } else {
+    const note = document.createElement('div');
+    note.className = 'no-codes-note';
+    note.textContent = 'No presale codes found yet. Codes usually appear a few days before the presale starts. Check back closer to the on-sale date.';
+    container.insertBefore(note, header.nextSibling);
+  }
+
+  // Save to history
+  if (codesFound > 0) {
+    const firstCode = included.filter(i => i.type === 'on-sale-dates' && i.attributes.password)[0];
+    saveHistory(artistId, artistName, `${tourEvents.length} events`, firstCode?.attributes?.password || null, 'artist');
+  }
+}
+
+function cleanTMLink(url) {
+  try {
+    const u = new URL(url).searchParams.get('u');
+    if (u) return decodeURIComponent(u);
+  } catch(e) {}
+  return url;
+}
+
+async function checkEvent() {
+  const input = document.getElementById('urlInput').value;
+  const uuid = extractUUID(input);
+  const btn = document.getElementById('checkBtn');
+
+  clearResults();
+
+  if (!uuid) {
+    showError('Could not find event UUID. Paste a go.seated.com/tour-events/... link or just the UUID.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Checking...';
+
+  try {
+    const resp = await fetch(API_BASE + uuid, {
+      headers: { 'Accept': 'application/vnd.api+json' }
+    });
+
+    if (!resp.ok) throw new Error('API returned ' + resp.status);
+
+    const data = await resp.json();
+    displayResult(data, uuid);
+  } catch (e) {
+    showError('Error: ' + e.message + '. The event might not exist or Seated may be blocking the request.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Check';
+  }
+}
+
+function displayResult(data, uuid) {
+  const event = data.data?.attributes || {};
+  const included = data.included || [];
+  const resultBox = document.getElementById('resultBox');
+
+  let artist = '', venue = '', venueCity = '';
+  const sales = [];
+
+  for (const item of included) {
+    if (item.type === 'artists') artist = item.attributes?.name || '';
+    else if (item.type === 'venues') {
+      venue = item.attributes?.name || '';
+      venueCity = [item.attributes?.city, item.attributes?.['state-or-province']].filter(Boolean).join(', ');
+    } else if (item.type === 'on-sale-dates') sales.push(item.attributes);
+  }
+
+  document.getElementById('resultIcon').textContent = sales.some(s => s.password) ? '🔓' : '📅';
+  document.getElementById('resultTitle').textContent = artist || 'Event Details';
+
+  const grid = document.getElementById('infoGrid');
+  grid.innerHTML = '';
+  const addInfo = (label, value) => {
+    if (!value) return;
+    grid.innerHTML += `<span class="info-label">${label}</span><span class="info-value">${value}</span>`;
+  };
+  addInfo('Artist', artist);
+  addInfo('Venue', venue);
+  addInfo('Location', venueCity || event['formatted-address']);
+  addInfo('Date', formatDate(event['starts-at'], event['time-zone-id']));
+  addInfo('Status', event['is-sold-out'] ? 'SOLD OUT' : 'Available');
+
+  const salesDiv = document.getElementById('salesList');
+  salesDiv.innerHTML = '<div style="margin-top:20px;margin-bottom:10px;font-weight:600;color:#888;font-size:13px;text-transform:uppercase;letter-spacing:1px">On-Sale Dates</div>';
+
+  let foundCode = null;
+
+  for (const sale of sales) {
+    const hasPass = sale.password && sale['password-required'];
+    const cls = hasPass ? 'sale-item' : 'sale-item no-pass';
+
+    let html = `<div class="${cls}"><div class="sale-name">${sale.name || 'Sale'}`;
+    if (hasPass) html += ` <span style="color:#a4dde0;font-size:13px">🔑 Code Required</span>`;
+    html += '</div>';
+
+    if (hasPass) {
+      foundCode = sale.password;
+      html += `<div class="presale-code"><div class="code" onclick="copyCode('${sale.password}')">${sale.password}</div><div class="hint">Click to copy</div></div>`;
+    }
+
+    html += `<div class="sale-time">Starts: ${formatDate(sale['starts-at'], null)}</div>`;
+    if (sale['ends-at']) html += `<div class="sale-time">Ends: ${formatDate(sale['ends-at'], null)}</div>`;
+
+    if (sale['link-url']) {
+      let tmLink = cleanTMLink(sale['link-url']);
+      html += `<div class="sale-link"><a href="${tmLink}" target="_blank">${tmLink}</a></div>`;
+    }
+
+    html += '</div>';
+    salesDiv.innerHTML += html;
+  }
+
+  if (sales.length === 0) {
+    salesDiv.innerHTML += '<div style="color:#888;padding:10px">No on-sale dates found for this event.</div>';
+  }
+
+  resultBox.classList.add('show');
+  saveHistory(uuid, artist, venue, foundCode, 'event');
+}
+
+function formatDate(isoStr, tz) {
+  if (!isoStr) return 'TBD';
+  try {
+    const d = new Date(isoStr);
+    const opts = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true };
+    if (tz) opts.timeZone = tz;
+    return d.toLocaleString('en-US', opts);
+  } catch(e) { return isoStr; }
+}
+
+function copyCode(code) {
+  navigator.clipboard.writeText(code).then(() => {
+    const msg = document.getElementById('copiedMsg');
+    msg.classList.add('show');
+    setTimeout(() => msg.classList.remove('show'), 1500);
+  });
+}
+
+// History
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem('seated_history') || '[]'); }
+  catch(e) { return []; }
+}
+
+function saveHistory(id, artist, venue, code, type) {
+  let history = getHistory();
+  history = history.filter(h => h.uuid !== id);
+  history.unshift({ uuid: id, artist, venue, code, type: type || 'event', time: new Date().toISOString() });
+  if (history.length > 20) history = history.slice(0, 20);
+  localStorage.setItem('seated_history', JSON.stringify(history));
+  renderHistory();
+}
+
+function clearHistory() {
+  localStorage.removeItem('seated_history');
+  renderHistory();
+}
+
+function renderHistory() {
+  const history = getHistory();
+  const section = document.getElementById('historySection');
+  const list = document.getElementById('historyList');
+  if (history.length === 0) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  list.innerHTML = '';
+  for (const h of history) {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.onclick = () => {
+      if (h.type === 'artist') {
+        switchTab('artist');
+        document.getElementById('artistInput').value = h.uuid;
+        // Can't re-scan by artist ID directly, but at least show it
+      } else {
+        switchTab('event');
+        document.getElementById('urlInput').value = 'https://go.seated.com/tour-events/' + h.uuid;
+        checkEvent();
+      }
+    };
+    div.innerHTML = `<span class="h-code">${h.code || 'No code'}</span><span class="h-event">${h.artist || ''} - ${h.venue || ''}</span><span class="h-time">${new Date(h.time).toLocaleDateString()}</span>`;
+    list.appendChild(div);
+  }
+}
+
+// Enter key handlers
+document.getElementById('urlInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkEvent(); });
+document.getElementById('artistInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkArtist(); });
+
+// Init
+renderHistory();
+</script>
+</body>
+</html>
